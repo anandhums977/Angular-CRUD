@@ -1,7 +1,10 @@
 
-import { Component, Input, OnInit, Type } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, Type } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpProviderService } from '../Service/http-provider.service';
+import { map, Observable, Subscription, tap } from 'rxjs';
+import { ProductService } from '../service/product.service';
+import { IProductResponse } from '../types/product-response';
+import { IProduct } from '../types/product.interface';
 
 @Component({
   selector: 'app-view-product',
@@ -9,35 +12,27 @@ import { HttpProviderService } from '../Service/http-provider.service';
   styleUrls: ['./view-product.component.css']
 })
 
-export class ViewProductComponent implements OnInit {
+export class ViewProductComponent implements OnInit,OnDestroy {
   
-  productList: any = [];
+  productList: IProduct[] = [];
+  productSubscription !:Subscription;
   constructor(private router: Router, 
-              private httpProvider : HttpProviderService) { }
+              private _productService : ProductService) { }
 
   ngOnInit(): void {
-    this.getAllProduct();
+   this.productSubscription = this._productService.getAllProduct().pipe(
+      map((response:IProductResponse)=>{
+        return response.products;
+      })
+    ).subscribe(({
+      next:products=>this.productList = products
+    }))
+
+
   }
-  async getAllProduct() {
-    this.httpProvider.getAllProduct().subscribe((data : any) => {
-      console.table(data.body.products)
-      let products = data.body.products
-      if (data != null && products != null) {
-        var resultData = products;
-        if (resultData) {
-          this.productList = resultData;
-        }
-      }
-    },
-    (error : any)=> {
-        if (error) {
-          if (error.status == 404) {
-            if(error.error && error.error.message){
-              this.productList = [];
-            }
-          }
-        }
-      });
+
+  ngOnDestroy(): void {
+    this.productSubscription.unsubscribe()
   }
 
   
